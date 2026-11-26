@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Shop_Order__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The Shop Order shipment this return request is for. Set by Create_Return_Case_ARC so context follows the Case. One return Case per shipment.</description>
+    <label>Shop Order</label>
+    <referenceTo>Shop_Order__c</referenceTo>
+    <relationshipLabel>Return Cases</relationshipLabel>
+    <relationshipName>Return_Cases</relationshipName>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

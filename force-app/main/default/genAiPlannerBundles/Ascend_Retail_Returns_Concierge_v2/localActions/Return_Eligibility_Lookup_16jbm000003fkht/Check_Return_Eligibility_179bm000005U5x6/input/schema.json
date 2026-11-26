@@ -1,0 +1,28 @@
+{
+  "required" : [ "orderNumber", "contactId" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "contactId" : {
+      "title" : "contactId",
+      "description" : "The verified shopper Contact Id. Always taken from the session variable, never from the shopper.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "orderNumber" : {
+      "title" : "orderNumber",
+      "description" : "The order number to check.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "selectedItem" : {
+      "title" : "selectedItem",
+      "description" : "Only when more than one shipment is eligible: the item name the shopper chose to return.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

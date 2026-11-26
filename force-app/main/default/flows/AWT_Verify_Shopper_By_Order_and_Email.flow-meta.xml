@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <description>No shipment matched the order number, or the email on the order does not match what the shopper supplied.</description>
+        <name>Set_Failure</name>
+        <label>Set Failure</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>attemptCount</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>nextAttempt</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>We couldn&apos;t verify you with that order number and email. Please double-check both and try again.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Too many failed attempts in this session: refuse to check anything and tell the agent to hand off.</description>
+        <name>Set_Locked</name>
+        <label>Set Locked</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>attemptCount</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>priorAttempts</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Too many unsuccessful attempts. For your security we can&apos;t continue verifying here, so a specialist will help you.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Shopper verified: the order number was found and the supplied email matches the email on the order.</description>
+        <name>Set_Success</name>
+        <label>Set Success</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>contactId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Get_Shipment.Contact__c</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>contactName</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Get_Shipment.Contact__r.Name</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>attemptCount</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <numberValue>0.0</numberValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <decisions>
+        <description>Confirms a shipment was returned for the order number, then checks the email on the order matches the supplied email (case-insensitive).</description>
+        <name>Check_Email_Match</name>
+        <label>Check Email Match</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Set_Failure</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No Match</defaultConnectorLabel>
+        <rules>
+            <name>Email_Matches</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Shipment</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>emailOnOrderLower</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <elementReference>emailSuppliedLower</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Success</targetReference>
+            </connector>
+            <label>Email Matches</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Lockout: after 3 failed verifications in a session, do not look anything up. Enforced here so the agent cannot skip it.</description>
+        <name>Check_Locked</name>
+        <label>Check Locked</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Get_Shipment</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Not Locked</defaultConnectorLabel>
+        <rules>
+            <name>Is_Locked</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>priorAttempts</leftValueReference>
+                <operator>GreaterThanOrEqualTo</operator>
+                <rightValue>
+                    <numberValue>3.0</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Locked</targetReference>
+            </connector>
+            <label>Is Locked</label>
+        </rules>
+    </decisions>
+    <description>Verifies a shopper by order number plus the email on the order. Looks up one shipment for the order number and compares its Email to the supplied email (case-insensitive). No OTP. Returns success, the matched Contact, and an error message on failure.</description>
+    <environments>Default</environments>
+    <formulas>
+        <description>Lowercased email on the matched order, for case-insensitive comparison. Blank when no shipment matched.</description>
+        <name>emailOnOrderLower</name>
+        <dataType>String</dataType>
+        <expression>LOWER(TRIM({!Get_Shipment.Email__c}))</expression>
+    </formulas>
+    <formulas>
+        <description>Lowercased email the shopper supplied, for case-insensitive comparison.</description>
+        <name>emailSuppliedLower</name>
+        <dataType>String</dataType>
+        <expression>LOWER(TRIM({!email}))</expression>
+    </formulas>
+    <formulas>
+        <description>Failed attempts including the one that just failed.</description>
+        <name>nextAttempt</name>
+        <dataType>Number</dataType>
+        <expression>IF(ISBLANK({!failedAttempts}), 0, {!failedAttempts}) + 1</expression>
+        <scale>0</scale>
+    </formulas>
+    <formulas>
+        <description>Failed attempts so far this session, treating blank as zero.</description>
+        <name>priorAttempts</name>
+        <dataType>Number</dataType>
+        <expression>IF(ISBLANK({!failedAttempts}), 0, {!failedAttempts})</expression>
+        <scale>0</scale>
+    </formulas>
+    <interviewLabel>AWT Verify Shopper By Order and Email {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>AWT Verify Shopper By Order and Email</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <description>Finds one shipment for the supplied order number. Any shipment of the order carries the same order-level email, so one record is enough to verify.</description>
+        <name>Get_Shipment</name>
+        <label>Get Shipment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Check_Email_Match</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Order_Number__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>orderNumber</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Shop_Order__c</object>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Email__c</queriedFields>
+        <queriedFields>Contact__c</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Check_Locked</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <description>Failed verifications so far, including this one. Reset to 0 on success.</description>
+        <name>attemptCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+    <variables>
+        <description>The matched shopper Contact Id. Populated only when success is true.</description>
+        <name>contactId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>contact name (user name) available on shop order record from Contact field.</description>
+        <name>contactName</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>The email the shopper supplied, to match against the email on the order.</description>
+        <name>email</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Populated only when success is false. Describes why verification did not pass.</description>
+        <name>errorMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Number of failed verifications so far in this session, passed in by the agent.</description>
+        <name>failedAttempts</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+    </variables>
+    <variables>
+        <description>The order number the shopper provided.</description>
+        <name>orderNumber</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>True when the order number and email on the order both match.</description>
+        <name>success</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <value>
+            <booleanValue>false</booleanValue>
+        </value>
+    </variables>
+</Flow>

@@ -1,0 +1,38 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "eligibleCount" : {
+      "title" : "eligibleCount",
+      "description" : "Count of eligible shipments on the order.",
+      "lightning:type" : "lightning__numberType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : false
+    },
+    "eligibleShipmentId" : {
+      "title" : "eligibleShipmentId",
+      "description" : "Id of the single eligible shipment to create a return for. Empty when none are eligible.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : false
+    },
+    "ineligibleReason" : {
+      "title" : "ineligibleReason",
+      "description" : "Set when no shipment is eligible (or the order was not found).",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : true,
+      "copilotAction:isUsedByPlanner" : true
+    },
+    "summary" : {
+      "title" : "summary",
+      "description" : "Human-readable, per-shipment eligibility summary read back to the shopper.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : true,
+      "copilotAction:isUsedByPlanner" : true
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

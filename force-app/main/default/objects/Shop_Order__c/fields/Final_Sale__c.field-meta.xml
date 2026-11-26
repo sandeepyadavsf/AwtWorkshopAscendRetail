@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Final_Sale__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>When true, the item was sold as final sale and cannot be returned. The eligibility check and the create-return flow both block returns for final-sale shipments.</description>
+    <label>Final Sale</label>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

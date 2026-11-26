@@ -1,0 +1,716 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <description>Append the already-requested ineligibility line.</description>
+        <name>Append_Already_Requested</name>
+        <label>Append Already Requested</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>lineAlreadyRequested</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Shipments</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>Append the final-sale ineligibility line.</description>
+        <name>Append_Final_Sale</name>
+        <label>Append Final Sale</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>lineFinalSale</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Shipments</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>Append the not-yet-delivered ineligibility line.</description>
+        <name>Append_Not_Delivered</name>
+        <label>Append Not Delivered</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>lineNotDelivered</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Shipments</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>Append the past-30-day-window ineligibility line.</description>
+        <name>Append_Past_Window</name>
+        <label>Append Past Window</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>linePastWindow</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Shipments</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>An additional eligible shipment beyond the first. Count it and append its line, but keep eligibleShipmentId pointed at the first one.</description>
+        <name>Increment_Eligible</name>
+        <label>Increment Eligible</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>eligibleCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>lineEligible</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Shipments</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>First eligible shipment on the order: capture its Id so the agent can create a return for exactly one shipment, count it, and append its line to the summary.</description>
+        <name>Set_First_Eligible</name>
+        <label>Set First Eligible</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>eligibleShipmentId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Shipments.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>eligibleCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <elementReference>lineEligible</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Shipments</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>More than one eligible and none chosen: clear the Id so no return can be created until the shopper picks one.</description>
+        <name>Set_Needs_Choice</name>
+        <label>Set Needs Choice</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>eligibleShipmentId</assignToReference>
+            <operator>Assign</operator>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <stringValue>MORE THAN ONE SHIPMENT IS ELIGIBLE. A return is created for one shipment at a time. Ask the shopper which item they want to return, then call this action again with selectedItem set to that item name.</stringValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>END_ELEMENT_6</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>No shipments matched the order number.</description>
+        <name>Set_No_Order</name>
+        <label>Set No Order</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>summary</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>No shipments were found for that order number.</stringValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>ineligibleReason</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Order number not found.</stringValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>END_ELEMENT_7</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>At least one shipment was found but none are eligible for a return.</description>
+        <name>Set_None_Eligible</name>
+        <label>Set None Eligible</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>ineligibleReason</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>No shipments on this order are eligible for a return.</stringValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>END_ELEMENT_8</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>Record the shipment the shopper chose.</description>
+        <name>Set_Selected</name>
+        <label>Set Selected</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>selectedShipmentId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Loop_Shipments.Id</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Check_First_Eligible</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>More than one eligible: return exactly the shipment the shopper chose.</description>
+        <name>Use_Selected</name>
+        <label>Use Selected</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>eligibleShipmentId</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>selectedShipmentId</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>END_ELEMENT_9</targetReference>
+        </connector>
+    </assignments>
+    <decisions>
+        <description>After looping all shipments, note whether none were eligible so the agent can explain clearly.</description>
+        <name>Any_Eligible</name>
+        <label>Any Eligible</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Set_None_Eligible</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>None Eligible</defaultConnectorLabel>
+        <rules>
+            <name>Has_Eligible</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>eligibleCount</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue>
+                    <numberValue>0.0</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Check_Multiple</targetReference>
+            </connector>
+            <label>Has Eligible</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Branch after the lookup: stop early if the order number matched no shipments.</description>
+        <name>Any_Shipments</name>
+        <label>Any Shipments</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Set_No_Order</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>None Found</defaultConnectorLabel>
+        <rules>
+            <name>Has_Shipments</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Shipments</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Loop_Shipments</targetReference>
+            </connector>
+            <label>Has Shipments</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Point eligibleShipmentId at the first eligible shipment only; count any additional eligible shipments without overwriting it.</description>
+        <name>Check_First_Eligible</name>
+        <label>Check First Eligible</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Increment_Eligible</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Additional Eligible</defaultConnectorLabel>
+        <rules>
+            <name>First_Eligible</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>eligibleCount</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <numberValue>0.0</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_First_Eligible</targetReference>
+            </connector>
+            <label>First Eligible</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>After the loop: if more than one shipment is eligible, use the shopper&apos;s choice, or ask them to choose. Never silently pick the first.</description>
+        <name>Check_Multiple</name>
+        <label>Check Multiple</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>END_ELEMENT_10</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Single Eligible</defaultConnectorLabel>
+        <rules>
+            <name>Multiple_Selected</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>eligibleCount</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue>
+                    <numberValue>1.0</numberValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>selectedShipmentId</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Use_Selected</targetReference>
+            </connector>
+            <label>Multiple Selected</label>
+        </rules>
+        <rules>
+            <name>Multiple_Unselected</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>eligibleCount</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue>
+                    <numberValue>1.0</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Needs_Choice</targetReference>
+            </connector>
+            <label>Multiple Unselected</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Remember which eligible shipment the shopper chose, if they named one.</description>
+        <name>Check_Selected</name>
+        <label>Check Selected</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Check_First_Eligible</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Not Selected</defaultConnectorLabel>
+        <rules>
+            <name>Is_Selected</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>isSelected</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>selectedShipmentId</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Selected</targetReference>
+            </connector>
+            <label>Is Selected</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>Classify the current shipment. Rules are evaluated in order; the first match wins, so Eligible is checked first and each ineligibility reason is reported specifically.</description>
+        <name>Evaluate_Shipment</name>
+        <label>Evaluate Shipment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Append_Already_Requested</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Already Requested / Other</defaultConnectorLabel>
+        <rules>
+            <name>Eligible</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Shipments.Status__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Delivered</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>Loop_Shipments.Final_Sale__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>Loop_Shipments.Delivered_Date__c</leftValueReference>
+                <operator>GreaterThanOrEqualTo</operator>
+                <rightValue>
+                    <elementReference>cutoffDate</elementReference>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>Get_Existing_Return_Case</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Check_Selected</targetReference>
+            </connector>
+            <label>Eligible</label>
+        </rules>
+        <rules>
+            <name>Is_Final_Sale</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Shipments.Final_Sale__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Append_Final_Sale</targetReference>
+            </connector>
+            <label>Is Final Sale</label>
+        </rules>
+        <rules>
+            <name>Not_Delivered</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Shipments.Status__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Delivered</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Append_Not_Delivered</targetReference>
+            </connector>
+            <label>Not Delivered</label>
+        </rules>
+        <rules>
+            <name>Past_Window</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_Shipments.Delivered_Date__c</leftValueReference>
+                <operator>LessThan</operator>
+                <rightValue>
+                    <elementReference>cutoffDate</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Append_Past_Window</targetReference>
+            </connector>
+            <label>Past Window</label>
+        </rules>
+    </decisions>
+    <description>Checks return eligibility for every shipment on an order number (handles split orders). For each shipment it applies the rules: delivered, not final sale, within 30 days of delivery, and no existing return request. Returns a human-readable per-shipment summary, the Id of the single eligible shipment to return (first one), and a count of eligible shipments.</description>
+    <ends>
+        <name>END_ELEMENT_10</name>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+    </ends>
+    <ends>
+        <name>END_ELEMENT_6</name>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+    </ends>
+    <ends>
+        <name>END_ELEMENT_7</name>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+    </ends>
+    <ends>
+        <name>END_ELEMENT_8</name>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+    </ends>
+    <ends>
+        <name>END_ELEMENT_9</name>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+    </ends>
+    <environments>Default</environments>
+    <formulas>
+        <description>Return window cutoff: shipments delivered on or after this date are still within the 30-day window.</description>
+        <name>cutoffDate</name>
+        <dataType>Date</dataType>
+        <expression>TODAY() - 14</expression>
+    </formulas>
+    <formulas>
+        <description>True when the shopper&apos;s chosen item or shipment name matches the current shipment.</description>
+        <name>isSelected</name>
+        <dataType>Boolean</dataType>
+        <expression>AND(NOT(ISBLANK({!selectedItem})), OR(LOWER({!Loop_Shipments.Name}) = LOWER(TRIM({!selectedItem})), CONTAINS(LOWER({!Loop_Shipments.Item__c}), LOWER(TRIM({!selectedItem})))))</expression>
+    </formulas>
+    <formulas>
+        <description>Summary line for a shipment that already has a return request.</description>
+        <name>lineAlreadyRequested</name>
+        <dataType>String</dataType>
+        <expression>&quot;- &quot; &amp; {!Loop_Shipments.Item__c} &amp; &quot; (shipment &quot; &amp; {!Loop_Shipments.Name} &amp; &quot;): NOT eligible — a return request already exists for this shipment. &quot;</expression>
+    </formulas>
+    <formulas>
+        <description>Summary line for an eligible shipment.</description>
+        <name>lineEligible</name>
+        <dataType>String</dataType>
+        <expression>&quot;- &quot; &amp; {!Loop_Shipments.Item__c} &amp; &quot; (shipment &quot; &amp; {!Loop_Shipments.Name} &amp; &quot;): ELIGIBLE for return; delivered &quot; &amp; TEXT({!Loop_Shipments.Delivered_Date__c}) &amp; &quot;. &quot;</expression>
+    </formulas>
+    <formulas>
+        <description>Summary line for a final-sale shipment.</description>
+        <name>lineFinalSale</name>
+        <dataType>String</dataType>
+        <expression>&quot;- &quot; &amp; {!Loop_Shipments.Item__c} &amp; &quot; (shipment &quot; &amp; {!Loop_Shipments.Name} &amp; &quot;): NOT eligible — final-sale item, cannot be returned. &quot;</expression>
+    </formulas>
+    <formulas>
+        <description>Summary line for a shipment that has not been delivered yet.</description>
+        <name>lineNotDelivered</name>
+        <dataType>String</dataType>
+        <expression>&quot;- &quot; &amp; {!Loop_Shipments.Item__c} &amp; &quot; (shipment &quot; &amp; {!Loop_Shipments.Name} &amp; &quot;): NOT eligible — shipment status is &quot; &amp; TEXT({!Loop_Shipments.Status__c}) &amp; &quot;, not yet delivered. &quot;</expression>
+    </formulas>
+    <formulas>
+        <description>Summary line for a shipment delivered more than 30 days ago.</description>
+        <name>linePastWindow</name>
+        <dataType>String</dataType>
+        <expression>&quot;- &quot; &amp; {!Loop_Shipments.Item__c} &amp; &quot; (shipment &quot; &amp; {!Loop_Shipments.Name} &amp; &quot;): NOT eligible — delivered &quot; &amp; TEXT({!Loop_Shipments.Delivered_Date__c}) &amp; &quot;, more than 30 days ago. &quot;</expression>
+    </formulas>
+    <interviewLabel>AWT Check Return Eligibility {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>AWT Check Return Eligibility</label>
+    <loops>
+        <description>Evaluate each shipment on the order for return eligibility.</description>
+        <name>Loop_Shipments</name>
+        <label>Loop Shipments</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <collectionReference>Get_Shipments</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Get_Existing_Return_Case</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Any_Eligible</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <description>Finds an existing return-request Case for the current shipment. Used to enforce only one return request per shipment. Null when no return Case exists yet.</description>
+        <name>Get_Existing_Return_Case</name>
+        <label>Get Existing Return Case</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Evaluate_Shipment</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Shop_Order__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>Loop_Shipments.Id</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Type</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Return</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Case</object>
+        <queriedFields>Id</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <description>All shipments sharing the supplied order number. A split order returns multiple records.</description>
+        <name>Get_Shipments</name>
+        <label>Get Shipments</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Any_Shipments</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Order_Number__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>orderNumber</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Contact__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>contactId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Shop_Order__c</object>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Name</queriedFields>
+        <queriedFields>Item__c</queriedFields>
+        <queriedFields>Status__c</queriedFields>
+        <queriedFields>Delivered_Date__c</queriedFields>
+        <queriedFields>Final_Sale__c</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <runInMode>SystemModeWithoutSharing</runInMode>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Shipments</targetReference>
+        </connector>
+    </start>
+    <status>Obsolete</status>
+    <variables>
+        <description>The verified shopper Contact Id. Only shipments belonging to this Contact are read, so another shopper&apos;s order is treated as not found.</description>
+        <name>contactId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Running count of eligible shipments found on the order.</description>
+        <name>eligibleCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+    <variables>
+        <description>Id of the single eligible shipment to create a return for. Empty when none is eligible, or when several are eligible and the shopper has not yet chosen one.</description>
+        <name>eligibleShipmentId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Set when no shipment is eligible (or the order was not found). Null when at least one shipment is eligible.</description>
+        <name>ineligibleReason</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>The order number to check.</description>
+        <name>orderNumber</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Optional. The item name or shipment name the shopper chose when more than one shipment is eligible.</description>
+        <name>selectedItem</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Internal: Id of the eligible shipment that matched selectedItem.</description>
+        <name>selectedShipmentId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Human-readable, per-shipment eligibility summary the agent reads back to the shopper.</description>
+        <name>summary</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+</Flow>

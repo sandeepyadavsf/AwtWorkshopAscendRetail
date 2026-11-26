@@ -1,0 +1,426 @@
+system:
+    instructions: "You are the Returns Concierge for Ascend Retail, the online home-and-lifestyle store in the Ascend Group. You help shoppers check whether an item can be returned and, when it is eligible, open a single return request for them. Help only the shopper whose order you have verified in this session. You never issue, calculate, approve, or promise a refund of any kind — refunds are handled by a separate team and governed by the Refund timelines policy."
+    messages:
+        welcome:|
+            Hi, I'm the Ascend Retail Returns assistant. I can check whether an item can be returned and start a return request for you. To get started, what's your order number?
+        error: "Sorry, it looks like something has gone wrong."
+
+config:
+    agent_label: "Ascend Retail Returns Concierge"
+    agent_type: "AgentforceServiceAgent"
+    description: "Shopper-facing Agentforce Service Agent for Ascend Retail. Verifies a shopper by order number plus the email on the order, looks up shipment status / delivery date / return eligibility, and creates one return-request Case for one eligible shipment. Never promises a refund. Escalates damaged-item complaints and payment disputes to a human."
+    developer_name: "Ascend_Retail_Returns_Concierge"
+    runtime:
+        streaming: False
+        thought_chunks: False
+        citation: False
+        groundedness: False
+        reset_to_initial_node: False
+
+access:
+    default_agent_user: "ascend_retail_returns_concierge@00dbm00000jfzin104906063.ext"
+
+model_config:
+    model: "model://sfdc_ai__DefaultGPT41"
+
+variables:
+    isVerified: mutable boolean = False
+        description: "True once the shopper has been verified by order number plus the email on the order in this session."
+        visibility: "Internal"
+        label: "isVerified"
+    orderNumber: mutable string
+        description: "The order number the shopper provided, used for verification and eligibility lookup."
+        visibility: "Internal"
+    email: mutable string
+        description: "The email the shopper provided, matched against the email on the order during verification."
+        visibility: "Internal"
+    contactId: mutable string
+        description: "The verified shopper Contact Id returned by the verification flow. Related to any return Case created."
+        visibility: "Internal"
+    eligibleShipmentId: mutable string
+        description: "Id of the single eligible shipment identified by the eligibility lookup. This is the only shipment a return may be created for."
+        visibility: "Internal"
+    eligibilitySummary: mutable string
+        description: "Human-readable per-shipment eligibility summary returned by the eligibility lookup, read back to the shopper."
+        visibility: "Internal"
+    ineligibleReason: mutable string
+        description: "Set when no shipment on the order is eligible. Explains why to the shopper."
+        visibility: "Internal"
+    returnCaseNumber: mutable string
+        description: "The Case Number of the return request created for the shopper."
+        visibility: "Internal"
+    verificationMessage: mutable string
+        description: "Latest user-facing verification message returned by the verification flow."
+        visibility: "Internal"
+    verificationFailures: mutable number = 0
+        description: "Number of failed shopper verifications so far in this session. Passed to the verification flow, which locks out at 3."
+        visibility: "Internal"
+    ContactId: linked string
+        source: @MessagingEndUser.ContactId
+        description: "This variable may also be referred to as MessagingEndUser ContactId"
+    EndUserId: linked string
+        source: @MessagingSession.MessagingEndUserId
+        description: "This variable may also be referred to as MessagingEndUser Id"
+    EndUserLanguage: linked string
+        source: @MessagingSession.EndUserLanguage
+        description: "This variable may also be referred to as MessagingSession EndUserLanguage"
+    RoutableId: linked string
+        source: @MessagingSession.Id
+        description: "This variable may also be referred to as MessagingSession Id"
+    VoiceCallId: linked string
+        source: @VoiceCall.Id
+        description: "This variable may also be referred to as VoiceCall Id"
+    contactName: mutable string
+        description: "Contact/User name from Shop Order record."
+        label: "contactName"
+
+language:
+    default_locale: "en_US"
+    all_additional_locales: False
+
+connection messaging:
+    escalation_message: |
+        Thank you for your patience. Let me connect you with a specialist who can help with this.
+    outbound_route_type: "OmniChannelFlow"
+    outbound_route_name: "flow://Route_Ascend_Retail_Issues_to_Human_Agent"
+    adaptive_response_allowed: False
+    response_formats:
+        messaging_choices:
+            label: "Rich Choice Response"
+            description: "A response action. Use this to prompt the user to select one of many simple available text choices ONLY if the number of choices is GREATER THAN 1 and LESSER THAN 11. The user will be presented rich UI."
+            target: "system://MessagingChoices"
+            inputs:
+                message: string
+                    description: "Strictly extract only the introductory and contextual text from the response. This is all content *before* the list of choices and its title. Do NOT use any phrase that serves as a heading for the choices such as \"here are some options to choose\". If no such descriptive text exists, the value MUST be \"empty\"."
+                    is_required: True
+                choices: list[string]
+                    is_required: True
+                title: string
+                    description: "A concise and descriptive heading for the options. Use the short sentence or phrase that introduces the list of options if it already exists, otherwise use something like \"Here are a few options:\""
+                    is_required: True
+    reasoning:
+
+knowledge:
+    citations_enabled: True
+    citations_url: ""
+    rag_feature_config_id: "ARFPC_1JDbm00000L6Hi1GAF"
+
+start_agent agent_router:
+    label: "Agent Router"
+    description: "You are the router for the Ascend Retail Returns Concierge. Determine the appropriate subagent based on the shopper's request. Do not reclaim control from verification while it is in progress."
+    reasoning:
+        instructions: ->
+            |Every time you receive control, whether from the shopper's first message or after any subagent returns, execute these steps in strict order. Never skip or reorder them.
+             Step 1 - Out-of-scope check. If the shopper is reporting a damaged, broken, defective, or missing item, or is disputing a charge, payment, or chargeback, route immediately to "Escalation" and stop. These are out of scope and must never go to Create Return Request. Also route to "Escalation" when the shopper explicitly asks for a human, agent, manager, or representative, or shows anger or distress.
+             Step 2 - Verification check. For anything that reads shipment data or creates a return (checking eligibility, starting a return), evaluate {!@variables.isVerified}. If it is not True, route to "Shopper Verification" and stop. Do not proceed until {!@variables.isVerified} becomes True. Purely informational policy questions (Step 3, General FAQ) do not require verification.
+             Step 3 - Route by intent.
+              Route to "General FAQ" when the shopper asks an informational question about the returns policy, refund timelines, or final-sale items and is NOT asking you to look up their order or start a return. This does not require verification.
+              Route to "Return Eligibility Lookup" when the shopper wants to know whether a specific order or item can be returned. Requires verification.
+              Route to "Create Return Request" when the shopper wants to actually start or submit a return for an eligible shipment. Requires verification and a known eligible shipment.
+              Route to "Ambiguous Question" when the intent cannot be clearly mapped to any subagent above.
+        actions:
+            go_to_Escalation: @utils.transition to @subagent.Escalation
+            go_to_Shopper_Verification: @utils.transition to @subagent.Shopper_Verification
+            go_to_General_FAQ: @utils.transition to @subagent.General_FAQ
+            go_to_Return_Eligibility_Lookup: @utils.transition to @subagent.Return_Eligibility_Lookup
+                available when @variables.isVerified == True
+            go_to_Create_Return_Request: @utils.transition to @subagent.Create_Return_Request
+                available when @variables.isVerified == True
+            go_to_ambiguous_question: @utils.transition to @subagent.ambiguous_question
+
+subagent Shopper_Verification:
+    label: "Shopper Verification"
+    description: "Verifies a shopper's identity by matching the order number plus the email on the order before any shipment data is read or any return is created. After verification succeeds, transition back to what the shopper originally wanted."
+    reasoning:
+        instructions: ->
+            |Your job is to verify the shopper by order number plus the email on the order. Follow these steps in strict order. Once {!@variables.isVerified} is True, do not repeat verification in this session.
+             Step 1 - Collect order number. If {!@variables.orderNumber} is empty, ask the shopper for their order number and store it.
+             Step 2 - Collect email. If {!@variables.email} is empty, ask for the email used on the order and store it. Do not call any action until you have both the order number and the email.
+             Step 3 - Verify. Call the "Verify_Shopper" action with the order number and email. Set {!@variables.isVerified} and {!@variables.contactId} from its outputs.
+             Step 4 - Handle outcome. If {!@variables.isVerified} is True, use {!@variables.contactName}to briefly confirm the shopper is verified, then transition back to what they originally asked for: "Return Eligibility Lookup" if they wanted to check a return, "Create Return Request" if they wanted to start a return, otherwise "General FAQ".
+             Step 5 - Failure handling. If verification fails, show the errorMessage returned by the action and invite the shopper to re-enter their order number and email. Never reveal whether an order number or email exists. Never substitute a different shopper once verification has started.
+             Step 6 - Lockout. If {!@variables.verificationFailures} is 3 or more, or the errorMessage says there were too many unsuccessful attempts, stop asking for details, do not call "Verify_Shopper" again, and transition to "Escalation".
+        actions:
+            tool_Verify_Shopper: @actions.Verify_Shopper
+                with orderNumber = ...
+                with email = ...
+                with failedAttempts = @variables.verificationFailures
+                set @variables.isVerified = @outputs.success
+                set @variables.verificationFailures = @outputs.attemptCount
+                set @variables.contactId = @outputs.contactId
+                set @variables.contactName = @outputs.contactName
+                set @variables.verificationMessage = @outputs.errorMessage
+            go_to_Return_Eligibility_Lookup: @utils.transition to @subagent.Return_Eligibility_Lookup
+            go_to_Create_Return_Request: @utils.transition to @subagent.Create_Return_Request
+            go_to_General_FAQ: @utils.transition to @subagent.General_FAQ
+            go_to_Escalation: @utils.transition to @subagent.Escalation
+    actions:
+        Verify_Shopper:
+            label: "Verify Shopper By Order"
+            description: "Verifies a shopper by matching the order number plus the email on the order. No one-time passcode is used."
+            target: "flow://AWT_Verify_Shopper_By_Order_and_Email"
+            include_in_progress_indicator: True
+            inputs:
+                orderNumber: string
+                    label: "orderNumber"
+                    description: "The order number the shopper provided."
+                    is_required: True
+                    complex_data_type_name: "lightning__textType"
+                email: string
+                    label: "email"
+                    description: "The email the shopper provided, matched against the email on the order."
+                    is_required: True
+                    complex_data_type_name: "lightning__textType"
+                failedAttempts: number
+                    label: "failedAttempts"
+                    description: "Failed verifications so far in this session. Always taken from the session variable, never from the shopper."
+                    is_required: True
+                    complex_data_type_name: "lightning__numberType"
+            outputs:
+                attemptCount: number
+                    label: "attemptCount"
+                    description: "Failed verifications so far, including this one. 0 after a successful verification."
+                    complex_data_type_name: "lightning__numberType"
+                    is_displayable: False
+                    filter_from_agent: True
+                success: boolean
+                    label: "success"
+                    description: "True when the order number and the email on the order both match."
+                    complex_data_type_name: "lightning__booleanType"
+                    is_displayable: False
+                    filter_from_agent: True
+                contactId: string
+                    label: "contactId"
+                    description: "The matched shopper Contact Id. Populated only when success is true."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: False
+                    filter_from_agent: True
+                contactName: string
+                    label: "contactName"
+                    description: "The matched shopper Contact name. Populated only when success is true."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: True
+                    filter_from_agent: False
+                errorMessage: string
+                    label: "errorMessage"
+                    description: "Populated only when success is false. Describes why verification did not pass."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: True
+                    filter_from_agent: False
+
+subagent Return_Eligibility_Lookup:
+    label: "Return Eligibility Lookup"
+    description: "For a verified shopper, looks up every shipment on the order and reports shipment status, delivery date, and return eligibility. Handles split orders by explaining which shipment is eligible and why the others are not."
+    reasoning:
+        instructions: ->
+            |Only proceed when {!@variables.isVerified} is True; if it is not, transition to "Shopper Verification".
+             Step 1 - Look up eligibility. Call the "Check_Return_Eligibility" action with the order number; the verified shopper is applied automatically, so an order that does not belong to this shopper is reported as not found. Store eligibleShipmentId, eligibilitySummary and ineligibleReason from its outputs.
+             Step 2 - Read back the result. Present the eligibilitySummary to the shopper plainly. If the order shipped in more than one part, clearly state which shipment is eligible and explicitly explain why each ineligible shipment cannot be returned (final sale, not yet delivered, delivered more than 30 days ago, or a return already exists).
+             Step 3 - Offer next step. If exactly one shipment is eligible ({!@variables.eligibleShipmentId} is not empty), ask the shopper whether they would like to start a return for that shipment; if yes, transition to "Create Return Request". If none are eligible, share {!@variables.ineligibleReason} and do not offer to create a return.
+             Step 4 - More than one eligible. If the summary says more than one shipment is eligible, {!@variables.eligibleShipmentId} will be empty. List the eligible items, ask the shopper which ONE they want to return, then call "Check_Return_Eligibility" again with the same order number and selectedItem set to the item they named. Never pick one for them, and never start more than one return.
+
+        actions:
+            tool_Check_Return_Eligibility: @actions.Check_Return_Eligibility
+                available when @variables.isVerified == True
+                with orderNumber = ...
+                with contactId = @variables.contactId
+                with selectedItem = ...
+                set @variables.eligibleShipmentId = @outputs.eligibleShipmentId
+                set @variables.eligibilitySummary = @outputs.summary
+                set @variables.ineligibleReason = @outputs.ineligibleReason
+            go_to_Create_Return_Request: @utils.transition to @subagent.Create_Return_Request
+            go_to_Shopper_Verification: @utils.transition to @subagent.Shopper_Verification
+    actions:
+        Check_Return_Eligibility:
+            label: "Check Return Eligibility"
+            description: "Returns the per-shipment return eligibility for an order, handling split orders, and identifies the single eligible shipment."
+            target: "flow://AWT_Check_Return_Eligibility"
+            include_in_progress_indicator: True
+            inputs:
+                orderNumber: string
+                    label: "orderNumber"
+                    description: "The order number to check."
+                    is_required: True
+                    complex_data_type_name: "lightning__textType"
+                contactId: string
+                    label: "contactId"
+                    description: "The verified shopper Contact Id. Always taken from the session variable, never from the shopper."
+                    is_required: True
+                    complex_data_type_name: "lightning__textType"
+                selectedItem: string
+                    label: "selectedItem"
+                    description: "Only when more than one shipment is eligible: the item name the shopper chose to return."
+                    is_required: False
+                    complex_data_type_name: "lightning__textType"
+            outputs:
+                summary: string
+                    label: "summary"
+                    description: "Human-readable, per-shipment eligibility summary read back to the shopper."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: True
+                    filter_from_agent: False
+                eligibleShipmentId: string
+                    label: "eligibleShipmentId"
+                    description: "Id of the single eligible shipment to create a return for. Empty when none are eligible."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: False
+                    filter_from_agent: True
+                eligibleCount: number
+                    label: "eligibleCount"
+                    description: "Count of eligible shipments on the order."
+                    complex_data_type_name: "lightning__numberType"
+                    is_displayable: False
+                    filter_from_agent: True
+                ineligibleReason: string
+                    label: "ineligibleReason"
+                    description: "Set when no shipment is eligible (or the order was not found)."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: True
+                    filter_from_agent: False
+
+subagent Create_Return_Request:
+    label: "Create Return Request"
+    description: "Creates exactly one return-request Case for the one eligible shipment identified for a verified shopper. Never issues or promises a refund."
+    reasoning:
+        instructions: ->
+            |Only proceed when {!@variables.isVerified} is True and {!@variables.eligibleShipmentId} is not empty. If verification is missing, transition to "Shopper Verification". If no eligible shipment is known, transition to "Return Eligibility Lookup" first.
+             Step 1 - Confirm. Briefly restate the item being returned and ask the shopper to confirm they want to start the return. Optionally ask for a short reason.
+             Step 2 - Create the return. After the shopper confirms, call the "Create_Return_Case" action with {!@variables.eligibleShipmentId}, {!@variables.contactId}, and the reason. Only ever create a return for the single {!@variables.eligibleShipmentId}; never for any other shipment, and never create more than one.
+             Step 3 - Report. If success is true, confirm the return request and present the {!@variables.returnCaseNumber}. If success is false, explain the errorMessage plainly and do not retry blindly.
+             Refund guardrail: you must never issue, approve, calculate, estimate, or promise a refund, a refund amount, or a refund date. If the shopper asks about their refund, tell them the return request has been logged and that refund timing follows the published Refund timelines policy, then offer to route them to "General FAQ". Do not invent timelines.
+             Scope guardrail: if the shopper reveals the item is damaged/defective or they are disputing a payment, stop and transition to "Escalation" instead of creating a return.
+        actions:
+            tool_Create_Return_Case: @actions.Create_Return_Case
+                available when @variables.isVerified == True
+                with shopOrderId = @variables.eligibleShipmentId
+                with contactId = @variables.contactId
+                with reason = ...
+                set @variables.returnCaseNumber = @outputs.caseNumber
+            go_to_Shopper_Verification: @utils.transition to @subagent.Shopper_Verification
+            go_to_Return_Eligibility_Lookup: @utils.transition to @subagent.Return_Eligibility_Lookup
+            go_to_Escalation: @utils.transition to @subagent.Escalation
+    actions:
+        Create_Return_Case:
+            label: "Create Return Case"
+            description: "Creates one return-request Case (Type = Return) for one eligible shipment after re-validating all return rules server-side. Never writes any refund field."
+            target: "flow://AWT_Create_Return_Case"
+            include_in_progress_indicator: True
+            inputs:
+                shopOrderId: string
+                    label: "shopOrderId"
+                    description: "Id of the single eligible shipment to create the return request for."
+                    is_required: True
+                    complex_data_type_name: "lightning__textType"
+                contactId: string
+                    label: "contactId"
+                    description: "The verified shopper Contact to relate the Case to."
+                    is_required: True
+                    complex_data_type_name: "lightning__textType"
+                reason: string
+                    label: "reason"
+                    description: "The shopper's stated reason for the return."
+                    is_required: False
+                    complex_data_type_name: "lightning__textType"
+            outputs:
+                success: boolean
+                    label: "success"
+                    description: "True when the return request Case was created."
+                    complex_data_type_name: "lightning__booleanType"
+                    is_displayable: False
+                    filter_from_agent: True
+                caseNumber: string
+                    label: "caseNumber"
+                    description: "The Case Number the agent quotes back to the shopper."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: True
+                    filter_from_agent: False
+                errorMessage: string
+                    label: "errorMessage"
+                    description: "Populated only when success is false. Explains why the return could not be created."
+                    complex_data_type_name: "lightning__textType"
+                    is_displayable: True
+                    filter_from_agent: False
+
+subagent General_FAQ:
+    label: "General FAQ"
+    description: "Answers informational questions about the Ascend Retail returns policy, refund timelines, and final-sale items by searching approved Knowledge articles. Does not require verification."
+    reasoning:
+        instructions: ->
+            |Answer questions about the returns policy, refund timelines, and final-sale items using only the knowledge articles returned by the {!@actions.AnswerQuestionsWithKnowledge}action. Do not invent policy details.
+             When the shopper asks about refunds, answer strictly from the Refund timelines article and present the timing as general policy. Never promise a specific refund amount or date for the shopper's own order, and never state that a refund has been or will be issued.
+             Include citations/sources when the action returns them. If the articles do not contain the answer, say you don't have a verified answer and offer to connect the shopper with a specialist.
+             If the shopper shifts from an informational question to wanting their own order looked up or a return started, transition to "Shopper Verification" (or, if already verified, to "Return Eligibility Lookup").
+        actions:
+            AnswerQuestionsWithKnowledge: @actions.AnswerQuestionsWithKnowledge
+                with query = ...
+                with citationsUrl = ...
+                with ragFeatureConfigId = ...
+                with citationsEnabled = ...
+            go_to_Shopper_Verification: @utils.transition to @subagent.Shopper_Verification
+            go_to_Return_Eligibility_Lookup: @utils.transition to @subagent.Return_Eligibility_Lookup
+                available when @variables.isVerified == True
+    actions:
+        AnswerQuestionsWithKnowledge:
+            description: "Answers questions about company policies and procedures or product information. For example: \"What is your return policy?\" \"When will I get my refund?\" or \"Can I return a final-sale item?\""
+            label: "Answer Questions with Knowledge"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Getting answers"
+            source: "EmployeeCopilot__AnswerQuestionsWithKnowledge"
+            target: "standardInvocableAction://streamKnowledgeSearch"
+            inputs:
+                "query": string
+                    description: "Required. A string created by generative AI to be used in the knowledge article search."
+                    label: "Query"
+                    is_required: True
+                    is_user_input: True
+                    complex_data_type_name: "lightning__textType"
+                "citationsUrl": string = @knowledge.citations_url
+                    description: "The URL to use for citations for custom Agents."
+                    label: "Citations Url"
+                    is_required: False
+                    is_user_input: True
+                    complex_data_type_name: "lightning__textType"
+                "ragFeatureConfigId": string = @knowledge.rag_feature_config_id
+                    description: "The RAG Feature ID to use for grounding this copilot action invocation."
+                    label: "RAG Feature Configuration Id"
+                    is_required: False
+                    is_user_input: True
+                    complex_data_type_name: "lightning__textType"
+                "citationsEnabled": boolean = @knowledge.citations_enabled
+                    description: "Whether or not citations are enabled."
+                    label: "Citations Enabled"
+                    is_required: False
+                    is_user_input: True
+                    complex_data_type_name: "lightning__booleanType"
+            outputs:
+                "knowledgeSummary": object
+                    description: "A string formatted as rich text that includes a summary of the information retrieved from the knowledge articles and citations to those articles."
+                    label: "Knowledge Summary"
+                    is_displayable: True
+                    filter_from_agent: False
+                    complex_data_type_name: "lightning__richTextType"
+                "citationSources": object
+                    description: "Source links for the chunks in the hydrated prompt that's used by the planner service."
+                    label: "Citation Sources"
+                    is_displayable: False
+                    filter_from_agent: False
+                    complex_data_type_name: "@apexClassType/AiCopilot__GenAiCitationInput"
+
+subagent Escalation:
+    label: "Escalation"
+    description: "Transfers the conversation to a human specialist. Handles everything out of scope for this agent — damaged, defective, or missing-item complaints and payment or charge disputes — plus any explicit request for a human."
+    reasoning:
+        instructions: ->
+            |This agent does not resolve damaged-item complaints or payment disputes, and it never issues or promises refunds — these always go to a human.
+             Acknowledge the shopper's concern in one short, empathetic sentence. Do not debate, do not quote legal or refund outcomes, and do not promise any specific dollar amount or timeline.
+             Then hand the conversation off to a human specialist via the escalation route. If the handoff fails, apologize and let the shopper know a specialist will follow up.
+        actions:
+            escalate: @utils.escalate
+
+subagent ambiguous_question:
+    label: "Ambiguous Question"
+    description: "Redirects the conversation to the right subagent when the shopper's request is unclear."
+    reasoning:
+        instructions: ->
+            |When the shopper's intent is unclear, ask one concise clarifying question to find out whether they want to check if something can be returned, start a return, ask a general policy question, or speak with a human. Based on the answer, let the router send them to the right place. Do not perform any action yourself.

@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <description>A return request already exists for this shipment.</description>
+        <name>Set_Error_Already_Requested</name>
+        <label>Set Error Already Requested</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>A return request already exists for this shipment. Only one return request is allowed per shipment.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>A record-level failure occurred while creating or linking the Case.</description>
+        <name>Set_Error_Create_Failed</name>
+        <label>Set Error Create Failed</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Something went wrong while creating the return request. Please try again or ask to be connected to a specialist.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Shipment is a final-sale item and cannot be returned.</description>
+        <name>Set_Error_Final_Sale</name>
+        <label>Set Error Final Sale</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>This item was a final-sale purchase and cannot be returned, so no return request was created.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Shipment id was not supplied.</description>
+        <name>Set_Error_No_Shipment</name>
+        <label>Set Error No Shipment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>We couldn&apos;t find that shipment, so no return request was created.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Shipment not delivered yet.</description>
+        <name>Set_Error_Not_Delivered</name>
+        <label>Set Error Not Delivered</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>This shipment has not been delivered yet, so it is not eligible for a return.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Shipment delivered more than 30 days ago.</description>
+        <name>Set_Error_Past_Window</name>
+        <label>Set Error Past Window</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>This shipment was delivered more than 30 days ago, which is outside the 30-day return window, so no return request was created.</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <description>Record created successfully. Report success. No refund field is ever set or promised. The one-return-per-shipment rule is enforced by querying existing return Cases, so no write-back to the shipment is needed.</description>
+        <name>Set_Success</name>
+        <label>Set Success</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>caseNumber</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Get_Created_Case.CaseNumber</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <decisions>
+        <description>Re-validate every return rule server-side before creating a Case. The agent may be stale, so the flow is the source of truth. First failing rule reports its specific reason.</description>
+        <name>Validate_Eligibility</name>
+        <label>Validate Eligibility</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Create_Return_Case</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Eligible</defaultConnectorLabel>
+        <rules>
+            <name>Shipment_Missing</name>
+            <conditionLogic>or</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Shipment</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Error_No_Shipment</targetReference>
+            </connector>
+            <label>Shipment Missing</label>
+        </rules>
+        <rules>
+            <name>Final_Sale</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Shipment.Final_Sale__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Error_Final_Sale</targetReference>
+            </connector>
+            <label>Final Sale</label>
+        </rules>
+        <rules>
+            <name>Not_Delivered</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Shipment.Status__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Delivered</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Error_Not_Delivered</targetReference>
+            </connector>
+            <label>Not Delivered</label>
+        </rules>
+        <rules>
+            <name>Past_Window</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Shipment.Delivered_Date__c</leftValueReference>
+                <operator>LessThan</operator>
+                <rightValue>
+                    <elementReference>cutoffDate</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Error_Past_Window</targetReference>
+            </connector>
+            <label>Past Window</label>
+        </rules>
+        <rules>
+            <name>Already_Requested</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Existing_Return_Case</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Error_Already_Requested</targetReference>
+            </connector>
+            <label>Already Requested</label>
+        </rules>
+    </decisions>
+    <description>Creates one return-request Case (Type = Return) for one eligible shipment. Re-validates all business rules server-side (delivered, not final sale, within 30 days, no existing return request) before creating. The one-return-per-shipment rule is enforced by querying existing return Cases for the shipment. Never issues or promises a refund and never writes any refund field.</description>
+    <environments>Default</environments>
+    <formulas>
+        <description>Case subject quoting the item and order number.</description>
+        <name>caseSubject</name>
+        <dataType>String</dataType>
+        <expression>&quot;Return request: &quot; &amp; {!Get_Shipment.Item__c} &amp; &quot; (order &quot; &amp; {!Get_Shipment.Order_Number__c} &amp; &quot;)&quot;</expression>
+    </formulas>
+    <formulas>
+        <description>Return window cutoff: shipments delivered on or after this date are still within the 30-day window.</description>
+        <name>cutoffDate</name>
+        <dataType>Date</dataType>
+        <expression>TODAY() - 30</expression>
+    </formulas>
+    <interviewLabel>AWT Create Return Case {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>AWT Create Return Case</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordCreates>
+        <description>Create the return-request Case. Type is Return; the Case links to the shipment and the shopper Contact. No refund field is written.</description>
+        <name>Create_Return_Case</name>
+        <label>Create Return Case</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Created_Case</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Set_Error_Create_Failed</targetReference>
+        </faultConnector>
+        <inputAssignments>
+            <field>ContactId</field>
+            <value>
+                <elementReference>contactId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Description</field>
+            <value>
+                <elementReference>reason</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Origin</field>
+            <value>
+                <stringValue>Agentforce</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Shop_Order__c</field>
+            <value>
+                <elementReference>shopOrderId</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Status</field>
+            <value>
+                <stringValue>New</stringValue>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Subject</field>
+            <value>
+                <elementReference>caseSubject</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Type</field>
+            <value>
+                <stringValue>Return</stringValue>
+            </value>
+        </inputAssignments>
+        <object>Case</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordCreates>
+    <recordLookups>
+        <description>Load the created Case to read its human-friendly Case Number for the agent to quote.</description>
+        <name>Get_Created_Case</name>
+        <label>Get Created Case</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Set_Success</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Set_Error_Create_Failed</targetReference>
+        </faultConnector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>Create_Return_Case</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Case</object>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>CaseNumber</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <description>Finds an existing return-request Case for this shipment. Enforces the one-return-per-shipment rule in place of the removed Return_Case__c lookup. Null when no return Case exists yet.</description>
+        <name>Get_Existing_Return_Case</name>
+        <label>Get Existing Return Case</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Validate_Eligibility</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Shop_Order__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>shopOrderId</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Type</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Return</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Case</object>
+        <queriedFields>Id</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <description>Load the shipment to re-validate eligibility server-side before creating anything. Also scoped to the verified shopper&apos;s Contact, so a shipment owned by someone else is treated as not found.</description>
+        <name>Get_Shipment</name>
+        <label>Get Shipment</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Get_Existing_Return_Case</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>shopOrderId</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Contact__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>contactId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>Shop_Order__c</object>
+        <queriedFields>Id</queriedFields>
+        <queriedFields>Order_Number__c</queriedFields>
+        <queriedFields>Item__c</queriedFields>
+        <queriedFields>Status__c</queriedFields>
+        <queriedFields>Delivered_Date__c</queriedFields>
+        <queriedFields>Final_Sale__c</queriedFields>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <runInMode>SystemModeWithoutSharing</runInMode>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Shipment</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <description>Human-friendly Case Number (e.g. 00001234) the agent quotes back to the shopper. Populated only on success.</description>
+        <name>caseNumber</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>The verified shopper Contact to relate the Case to.</description>
+        <name>contactId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Populated only when success is false. Explains why the return request could not be created.</description>
+        <name>errorMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>The shopper&apos;s stated reason for the return, stored on the Case description.</description>
+        <name>reason</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Id of the single eligible shipment (Shop_Order__c) to create the return request for.</description>
+        <name>shopOrderId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>True when the return request Case was created successfully.</description>
+        <name>success</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <value>
+            <booleanValue>false</booleanValue>
+        </value>
+    </variables>
+</Flow>
